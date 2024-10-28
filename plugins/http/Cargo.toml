@@ -41,6 +41,7 @@ http = "1"
 reqwest = { version = "0.12", default-features = false }
 url = { workspace = true }
 data-url = "0.3"
+reqwest_cookie_store = { version = "0.8", optional = true }
 
 [features]
 default = [
@@ -61,7 +62,7 @@ rustls-tls-manual-roots = ["reqwest/rustls-tls-manual-roots"]
 rustls-tls-webpki-roots = ["reqwest/rustls-tls-webpki-roots"]
 rustls-tls-native-roots = ["reqwest/rustls-tls-native-roots"]
 blocking = ["reqwest/blocking"]
-cookies = ["reqwest/cookies"]
+cookies = ["reqwest/cookies", "dep:reqwest_cookie_store"]
 gzip = ["reqwest/gzip"]
 brotli = ["reqwest/brotli"]
 deflate = ["reqwest/deflate"]
