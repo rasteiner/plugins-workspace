@@ -41,7 +41,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
                 let path = cache_dir.join("Cookies");
                 let file = File::options()
                     .create(true)
-                    .write(true)
+                    .append(true)
                     .read(true)
                     .open(&path)?;
 
