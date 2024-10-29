@@ -139,10 +139,11 @@ pub fn open<P: AsRef<str>>(scope: &OpenScope, path: P, with: Option<Program>) ->
 
 pub fn show_item_in_directory<P: AsRef<std::path::Path>>(p: P) -> crate::Result<()> {
     let p = p.as_ref().canonicalize()?;
+    let p = dunce::simplified(&p);
 
     #[cfg(any(
         windows,
-        target_os = "maco",
+        target_os = "macos",
         target_os = "linux",
         target_os = "dragonfly",
         target_os = "freebsd",
@@ -153,7 +154,7 @@ pub fn show_item_in_directory<P: AsRef<std::path::Path>>(p: P) -> crate::Result<
 
     #[cfg(not(any(
         windows,
-        target_os = "maco",
+        target_os = "macos",
         target_os = "linux",
         target_os = "dragonfly",
         target_os = "freebsd",

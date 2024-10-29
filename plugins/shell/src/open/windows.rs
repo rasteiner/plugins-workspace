@@ -1,4 +1,4 @@
-use std::{ffi::OsString, path::PathBuf};
+use std::path::Path;
 
 use windows::{
     core::{w, HSTRING, PCWSTR},
@@ -12,18 +12,16 @@ use windows::{
     },
 };
 
-pub fn show_item_in_directory(file: PathBuf) -> crate::Result<()> {
+pub fn show_item_in_directory(file: &Path) -> crate::Result<()> {
     let _ = unsafe { CoInitialize(None) };
 
     let dir = file
         .parent()
-        .ok_or_else(|| crate::Error::NoParent(file.clone()))?;
+        .ok_or_else(|| crate::Error::NoParent(file.to_path_buf()))?;
 
-    let dir = OsString::from(dir);
     let dir = HSTRING::from(dir);
     let dir_item = unsafe { ILCreateFromPathW(PCWSTR::from_raw(dir.as_ptr())) };
 
-    let file = OsString::from(file);
     let file = HSTRING::from(file);
     let file_item = unsafe { ILCreateFromPathW(PCWSTR::from_raw(file.as_ptr())) };
 
