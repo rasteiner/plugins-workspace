@@ -74,7 +74,7 @@ impl Builder {
                 let asset_resolver = app.asset_resolver();
                 std::thread::spawn(move || {
                     let server =
-                        Server::http(&format!("localhost:{port}")).expect("Unable to spawn server");
+                        Server::http(format!("localhost:{port}")).expect("Unable to spawn server");
                     for req in server.incoming_requests() {
                         let path = req
                             .url()
@@ -100,16 +100,6 @@ impl Builder {
 
                             if let Some(on_request) = &on_request {
                                 on_request(&request, &mut response);
-                            }
-
-                            #[cfg(target_os = "linux")]
-                            if let Some(response_csp) =
-                                response.headers.get("Content-Security-Policy")
-                            {
-                                let html = String::from_utf8_lossy(&asset.bytes);
-                                let body =
-                                    html.replacen(tauri::utils::html::CSP_TOKEN, response_csp, 1);
-                                asset.bytes = body.as_bytes().to_vec();
                             }
 
                             let mut resp = HttpResponse::from_data(asset.bytes);

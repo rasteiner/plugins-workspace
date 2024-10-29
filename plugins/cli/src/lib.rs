@@ -23,8 +23,9 @@ mod error;
 mod parser;
 
 use config::{Arg, Config};
-pub use error::Error;
-type Result<T> = std::result::Result<T, Error>;
+
+pub use error::{Error, Result};
+pub use parser::{ArgData, Matches, SubcommandMatches};
 
 pub struct Cli<R: Runtime>(PluginApi<R, Config>);
 
@@ -51,7 +52,6 @@ fn cli_matches<R: Runtime>(_app: AppHandle<R>, cli: State<'_, Cli<R>>) -> Result
 
 pub fn init<R: Runtime>() -> TauriPlugin<R, Config> {
     Builder::new("cli")
-        .js_init_script(include_str!("api-iife.js").to_string())
         .invoke_handler(tauri::generate_handler![cli_matches])
         .setup(|app, api| {
             app.manage(Cli(api));

@@ -11,9 +11,18 @@ use std::{
     },
 };
 
-#[derive(Debug, schemars::JsonSchema)]
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub(crate) enum EntryRaw {
+    Value(PathBuf),
+    Object { path: PathBuf },
+}
+
+#[derive(Debug)]
 pub struct Entry {
-    pub path: PathBuf,
+    pub path: Option<PathBuf>,
 }
 
 pub type EventId = u32;
@@ -45,9 +54,11 @@ impl Scope {
     pub fn allow_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) {
         let path = path.as_ref();
 
-        let mut allowed = self.allowed.lock().unwrap();
-        allowed.push(path.to_path_buf());
-        allowed.push(path.join(if recursive { "**" } else { "*" }));
+        {
+            let mut allowed = self.allowed.lock().unwrap();
+            allowed.push(path.to_path_buf());
+            allowed.push(path.join(if recursive { "**" } else { "*" }));
+        }
 
         self.emit(Event::PathAllowed(path.to_path_buf()));
     }
@@ -69,9 +80,11 @@ impl Scope {
     pub fn forbid_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) {
         let path = path.as_ref();
 
-        let mut denied = self.denied.lock().unwrap();
-        denied.push(path.to_path_buf());
-        denied.push(path.join(if recursive { "**" } else { "*" }));
+        {
+            let mut denied = self.denied.lock().unwrap();
+            denied.push(path.to_path_buf());
+            denied.push(path.join(if recursive { "**" } else { "*" }));
+        }
 
         self.emit(Event::PathForbidden(path.to_path_buf()));
     }

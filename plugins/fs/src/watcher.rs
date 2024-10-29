@@ -7,8 +7,8 @@ use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileI
 use serde::Deserialize;
 use tauri::{
     ipc::{Channel, CommandScope, GlobalScope},
-    path::{BaseDirectory, SafePathBuf},
-    AppHandle, Manager, Resource, ResourceId, Runtime,
+    path::BaseDirectory,
+    Manager, Resource, ResourceId, Runtime, Webview,
 };
 
 use std::{
@@ -24,6 +24,7 @@ use std::{
 use crate::{
     commands::{resolve_path, CommandResult},
     scope::Entry,
+    SafeFilePath,
 };
 
 struct InnerWatcher {
@@ -50,57 +51,57 @@ enum WatcherKind {
     Watcher(RecommendedWatcher),
 }
 
-fn watch_raw(on_event: Channel, rx: Receiver<notify::Result<Event>>) {
+fn watch_raw(on_event: Channel<Event>, rx: Receiver<notify::Result<Event>>) {
     spawn(move || {
         while let Ok(event) = rx.recv() {
             if let Ok(event) = event {
                 // TODO: Should errors be emitted too?
-                let _ = on_event.send(&event);
+                let _ = on_event.send(event);
             }
         }
     });
 }
 
-fn watch_debounced(on_event: Channel, rx: Receiver<DebounceEventResult>) {
+fn watch_debounced(on_event: Channel<Event>, rx: Receiver<DebounceEventResult>) {
     spawn(move || {
         while let Ok(Ok(events)) = rx.recv() {
             for event in events {
                 // TODO: Should errors be emitted too?
-                let _ = on_event.send(&event.event);
+                let _ = on_event.send(event.event);
             }
         }
     });
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WatchOptions {
-    dir: Option<BaseDirectory>,
+    base_dir: Option<BaseDirectory>,
     recursive: bool,
     delay_ms: Option<u64>,
 }
 
 #[tauri::command]
 pub async fn watch<R: Runtime>(
-    app: AppHandle<R>,
-    paths: Vec<SafePathBuf>,
+    webview: Webview<R>,
+    paths: Vec<SafeFilePath>,
     options: WatchOptions,
-    on_event: Channel,
+    on_event: Channel<Event>,
     global_scope: GlobalScope<Entry>,
     command_scope: CommandScope<Entry>,
 ) -> CommandResult<ResourceId> {
     let mut resolved_paths = Vec::with_capacity(paths.capacity());
     for path in paths {
         resolved_paths.push(resolve_path(
-            &app,
+            &webview,
             &global_scope,
             &command_scope,
             path,
-            options.dir,
+            options.base_dir,
         )?);
     }
 
-    let mode = if options.recursive {
+    let recursive_mode = if options.recursive {
         RecursiveMode::Recursive
     } else {
         RecursiveMode::NonRecursive
@@ -110,7 +111,8 @@ pub async fn watch<R: Runtime>(
         let (tx, rx) = channel();
         let mut debouncer = new_debouncer(Duration::from_millis(delay), None, tx)?;
         for path in &resolved_paths {
-            debouncer.watcher().watch(path.as_ref(), mode)?;
+            debouncer.watcher().watch(path.as_ref(), recursive_mode)?;
+            debouncer.cache().add_root(path, recursive_mode);
         }
         watch_debounced(on_event, rx);
         WatcherKind::Debouncer(debouncer)
@@ -118,13 +120,13 @@ pub async fn watch<R: Runtime>(
         let (tx, rx) = channel();
         let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
         for path in &resolved_paths {
-            watcher.watch(path.as_ref(), mode)?;
+            watcher.watch(path.as_ref(), recursive_mode)?;
         }
         watch_raw(on_event, rx);
         WatcherKind::Watcher(watcher)
     };
 
-    let rid = app
+    let rid = webview
         .resources_table()
         .add(WatcherResource::new(kind, resolved_paths));
 
@@ -132,8 +134,8 @@ pub async fn watch<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn unwatch<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> CommandResult<()> {
-    let watcher = app.resources_table().take::<WatcherResource>(rid)?;
+pub async fn unwatch<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> CommandResult<()> {
+    let watcher = webview.resources_table().take::<WatcherResource>(rid)?;
     WatcherResource::with_lock(&watcher, |watcher| {
         match &mut watcher.kind {
             WatcherKind::Debouncer(ref mut debouncer) => {

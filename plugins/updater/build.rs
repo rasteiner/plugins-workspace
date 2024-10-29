@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-const COMMANDS: &[&str] = &["check", "download_and_install"];
+const COMMANDS: &[&str] = &["check", "download", "install", "download_and_install"];
 
 fn main() {
-    tauri_plugin::Builder::new(COMMANDS).build();
+    tauri_plugin::Builder::new(COMMANDS)
+        .global_api_script_path("./api-iife.js")
+        .build();
 
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
     let mobile = target_os == "ios" || target_os == "android";

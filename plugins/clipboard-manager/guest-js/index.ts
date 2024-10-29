@@ -8,9 +8,8 @@
  * @module
  */
 
-import { invoke } from "@tauri-apps/api/core";
-
-type ClipResponse = Record<"plainText", { text: string }>;
+import { invoke } from '@tauri-apps/api/core'
+import { Image, transformImage } from '@tauri-apps/api/image'
 
 /**
  * Writes plain text to the clipboard.
@@ -27,16 +26,12 @@ type ClipResponse = Record<"plainText", { text: string }>;
  */
 async function writeText(
   text: string,
-  opts?: { label?: string },
+  opts?: { label?: string }
 ): Promise<void> {
-  return invoke("plugin:clipboard-manager|write", {
-    data: {
-      plainText: {
-        label: opts?.label,
-        text,
-      },
-    },
-  });
+  await invoke('plugin:clipboard-manager|write_text', {
+    label: opts?.label,
+    text
+  })
 }
 
 /**
@@ -49,12 +44,70 @@ async function writeText(
  * @since 2.0.0
  */
 async function readText(): Promise<string> {
-  const kind: ClipResponse = await invoke("plugin:clipboard-manager|read");
-  return kind.plainText.text;
+  return await invoke('plugin:clipboard-manager|read_text')
 }
 
 /**
- * Writes HTML or fallbacks to write provided plain text to the clipboard.
+ * Writes image buffer to the clipboard.
+ *
+ * #### Platform-specific
+ *
+ * - **Android / iOS:** Not supported.
+ *
+ * @example
+ * ```typescript
+ * import { writeImage } from '@tauri-apps/plugin-clipboard-manager';
+ * const buffer = [
+ *   // A red pixel
+ *   255, 0, 0, 255,
+ *
+ *  // A green pixel
+ *   0, 255, 0, 255,
+ * ];
+ * await writeImage(buffer);
+ *
+ * @returns A promise indicating the success or failure of the operation.
+ *
+ * @since 2.0.0
+ */
+async function writeImage(
+  image: string | Image | Uint8Array | ArrayBuffer | number[]
+): Promise<void> {
+  await invoke('plugin:clipboard-manager|write_image', {
+    image: transformImage(image)
+  })
+}
+
+/**
+ * Gets the clipboard content as Uint8Array image.
+ *
+ * #### Platform-specific
+ *
+ * - **Android / iOS:** Not supported.
+ *
+ * @example
+ * ```typescript
+ * import { readImage } from '@tauri-apps/plugin-clipboard-manager';
+ *
+ * const clipboardImage = await readImage();
+ * const blob = new Blob([clipboardImage.bytes], { type: 'image' })
+ * const url = URL.createObjectURL(blob)
+ * ```
+ * @since 2.0.0
+ */
+async function readImage(): Promise<Image> {
+  return await invoke<number>('plugin:clipboard-manager|read_image').then(
+    (rid) => new Image(rid)
+  )
+}
+
+/**
+ * * Writes HTML or fallbacks to write provided plain text to the clipboard.
+ *
+ * #### Platform-specific
+ *
+ * - **Android / iOS:** Not supported.
+ *
  * @example
  * ```typescript
  * import { writeHtml, readHtml } from '@tauri-apps/plugin-clipboard-manager';
@@ -68,18 +121,19 @@ async function readText(): Promise<string> {
  * @since 2.0.0
  */
 async function writeHtml(html: string, altHtml?: string): Promise<void> {
-  return invoke("plugin:clipboard-manager|write_html", {
-    data: {
-      html: {
-        html,
-        altHtml,
-      },
-    },
-  });
+  await invoke('plugin:clipboard-manager|write_html', {
+    html,
+    altHtml
+  })
 }
 
 /**
  * Clears the clipboard.
+ *
+ * #### Platform-specific
+ *
+ * - **Android:** Only supported on SDK 28+. For older releases we write an empty string to the clipboard instead.
+ *
  * @example
  * ```typescript
  * import { clear } from '@tauri-apps/plugin-clipboard-manager';
@@ -88,8 +142,7 @@ async function writeHtml(html: string, altHtml?: string): Promise<void> {
  * @since 2.0.0
  */
 async function clear(): Promise<void> {
-  await invoke("plugin:clipboard-manager|clear");
-  return;
+  await invoke('plugin:clipboard-manager|clear')
 }
 
-export { writeText, readText, writeHtml, clear };
+export { writeText, readText, writeHtml, clear, readImage, writeImage }

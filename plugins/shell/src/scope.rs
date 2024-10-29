@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::sync::Arc;
+
 use crate::open::Program;
 use crate::process::Command;
 
@@ -86,9 +88,14 @@ impl ScopeObject for ScopeAllowedCommand {
                     crate::scope_entry::ShellAllowedArg::Fixed(fixed) => {
                         crate::scope::ScopeAllowedArg::Fixed(fixed)
                     }
-                    crate::scope_entry::ShellAllowedArg::Var { validator } => {
-                        let validator = Regex::new(&validator)
-                            .unwrap_or_else(|e| panic!("invalid regex {validator}: {e}"));
+                    crate::scope_entry::ShellAllowedArg::Var { validator, raw } => {
+                        let regex = if raw {
+                            validator
+                        } else {
+                            format!("^{validator}$")
+                        };
+                        let validator = Regex::new(&regex)
+                            .unwrap_or_else(|e| panic!("invalid regex {regex}: {e}"));
                         crate::scope::ScopeAllowedArg::Var { validator }
                     }
                 });
@@ -141,7 +148,7 @@ pub struct OpenScope {
 #[derive(Clone)]
 pub struct ShellScope<'a> {
     /// All allowed commands, using their unique command name as the keys.
-    pub scopes: Vec<&'a ScopeAllowedCommand>,
+    pub scopes: Vec<&'a Arc<ScopeAllowedCommand>>,
 }
 
 /// All errors that can happen while validating a scoped command.

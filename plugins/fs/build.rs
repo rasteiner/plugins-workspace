@@ -2,11 +2,39 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fs::create_dir_all, path::Path};
+use std::{
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+};
 
 #[path = "src/scope.rs"]
 #[allow(dead_code)]
 mod scope;
+
+/// FS scope entry.
+#[derive(schemars::JsonSchema)]
+#[serde(untagged)]
+#[allow(unused)]
+enum FsScopeEntry {
+    /// FS scope path.
+    Value(PathBuf),
+    Object {
+        /// FS scope path.
+        path: PathBuf,
+    },
+}
+
+// Ensure `FsScopeEntry` and `scope::EntryRaw` is kept in sync
+fn _f() {
+    match scope::EntryRaw::Value(PathBuf::new()) {
+        scope::EntryRaw::Value(path) => FsScopeEntry::Value(path),
+        scope::EntryRaw::Object { path } => FsScopeEntry::Object { path },
+    };
+    match FsScopeEntry::Value(PathBuf::new()) {
+        FsScopeEntry::Value(path) => scope::EntryRaw::Value(path),
+        FsScopeEntry::Object { path } => scope::EntryRaw::Object { path },
+    };
+}
 
 const BASE_DIR_VARS: &[&str] = &[
     "AUDIO",
@@ -26,7 +54,6 @@ const BASE_DIR_VARS: &[&str] = &[
     "TEMPLATE",
     "VIDEO",
     "RESOURCE",
-    "APP",
     "LOG",
     "TEMP",
     "APPCONFIG",
@@ -83,15 +110,19 @@ fn main() {
 
 [[permission]]
 identifier = "scope-{lower}-recursive"
-description = "This scope recursive access to the complete `${upper}` folder, including sub directories and files."
+description = "This scope permits recursive access to the complete `${upper}` folder, including sub directories and files."
 
+[[permission.scope.allow]]
+path = "${upper}"
 [[permission.scope.allow]]
 path = "${upper}/**"
 
 [[permission]]
 identifier = "scope-{lower}"
-description = "This scope permits access to all files and list content of top level directories in the `${upper}`folder."
+description = "This scope permits access to all files and list content of top level directories in the `${upper}` folder."
 
+[[permission.scope.allow]]
+path = "${upper}"
 [[permission.scope.allow]]
 path = "${upper}/*"
 
@@ -100,7 +131,7 @@ identifier = "scope-{lower}-index"
 description = "This scope permits to list all files and folders in the `${upper}`folder."
 
 [[permission.scope.allow]]
-path = "${upper}/"
+path = "${upper}"
 
 # Sets Section
 # This section combines the scope elements with enablement of commands
@@ -115,7 +146,7 @@ permissions = [
 
 [[set]]
 identifier = "allow-{lower}-write-recursive"
-description = "This allows full recusrive write access to the complete `${upper}` folder, files and subdirectories."
+description = "This allows full recursive write access to the complete `${upper}` folder, files and subdirectories."
 permissions = [
     "write-all",
     "scope-{lower}-recursive"
@@ -139,7 +170,7 @@ permissions = [
 
 [[set]]
 identifier = "allow-{lower}-meta-recursive"
-description = "This allows read access to metadata of the `${upper}` folder, including file listing and statistics."
+description = "This allows full recursive read access to metadata of the `${upper}` folder, including file listing and statistics."
 permissions = [
     "read-meta",
     "scope-{lower}-recursive"
@@ -147,18 +178,23 @@ permissions = [
 
 [[set]]
 identifier = "allow-{lower}-meta"
-description = "This allows read access to metadata of the `${upper}` folder, including file listing and statistics."
+description = "This allows non-recursive read access to metadata of the `${upper}` folder, including file listing and statistics."
 permissions = [
     "read-meta",
     "scope-{lower}-index"
 ]"###
         );
 
-        std::fs::write(base_dirs.join(format!("{lower}.toml")), toml)
-            .unwrap_or_else(|e| panic!("unable to autogenerate ${upper}: {e}"));
+        let permission_path = base_dirs.join(format!("{lower}.toml"));
+        if toml != std::fs::read_to_string(&permission_path).unwrap_or_default() {
+            std::fs::write(permission_path, toml)
+                .unwrap_or_else(|e| panic!("unable to autogenerate ${lower}: {e}"));
+        }
     }
 
     tauri_plugin::Builder::new(COMMANDS)
-        .global_scope_schema(schemars::schema_for!(scope::Entry))
+        .global_api_script_path("./api-iife.js")
+        .global_scope_schema(schemars::schema_for!(FsScopeEntry))
+        .android_path("android")
         .build();
 }

@@ -6,7 +6,7 @@
 mod config;
 use config::{AssociatedDomain, Config};
 
-const COMMANDS: &[&str] = &["get_current"];
+const COMMANDS: &[&str] = &["get_current", "register", "unregister", "is_registered"];
 
 // TODO: Consider using activity-alias in case users may have multiple activities in their app.
 // TODO: Do we want to support the other path* configs too?
@@ -32,14 +32,14 @@ fn intent_filter(domain: &AssociatedDomain) -> String {
 }
 
 fn main() {
-    if let Err(error) = tauri_plugin::Builder::new(COMMANDS)
+    let result = tauri_plugin::Builder::new(COMMANDS)
+        .global_api_script_path("./api-iife.js")
         .android_path("android")
-        .try_build()
-    {
-        println!("{error:#}");
-        if !(cfg!(docsrs) && std::env::var("TARGET").unwrap().contains("android")) {
-            std::process::exit(1);
-        }
+        .try_build();
+
+    // when building documentation for Android the plugin build result is always Err() and is irrelevant to the crate documentation build
+    if !(cfg!(docsrs) && std::env::var("TARGET").unwrap().contains("android")) {
+        result.unwrap();
     }
 
     if let Some(config) = tauri_plugin::plugin_config::<Config>("deep-link") {
@@ -47,7 +47,7 @@ fn main() {
             "DEEP LINK PLUGIN",
             "activity",
             config
-                .domains
+                .mobile
                 .iter()
                 .map(intent_filter)
                 .collect::<Vec<_>>()
@@ -61,7 +61,7 @@ fn main() {
                 entitlements.insert(
                     "com.apple.developer.associated-domains".into(),
                     config
-                        .domains
+                        .mobile
                         .into_iter()
                         .map(|d| format!("applinks:{}", d.host).into())
                         .collect::<Vec<_>>()
