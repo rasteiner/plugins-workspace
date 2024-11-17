@@ -39,13 +39,20 @@ struct Update {
     url: &'static str,
 }
 
-fn setup_test() -> (PathBuf, PathBuf, Config) {
+fn setup_test() -> (PathBuf, PathBuf, Config, Config) {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
     let target_dir = std::env::var("CARGO_TARGET_DIR")
         .or_else(|_| std::env::var("CARGO_BUILD_TARGET_DIR"))
         .map(PathBuf::from)
         .unwrap_or_else(|_| manifest_dir.join("../../../../target"));
+
+    let base_config = Config {
+        version: "0.1.0",
+        bundle: BundleConfig {
+            create_updater_artifacts: Updater::Bool(true),
+        },
+    };
 
     let config = Config {
         version: "1.0.0",
@@ -54,13 +61,13 @@ fn setup_test() -> (PathBuf, PathBuf, Config) {
         },
     };
 
-    (manifest_dir, target_dir, config)
+    (manifest_dir, target_dir, base_config, config)
 }
 
 fn build_app(cwd: &Path, config: &Config, bundle_updater: bool, target: &str) {
     let mut command = Command::new("cargo");
     command
-        .args(["tauri", "build", "--debug", "--verbose"])
+        .args(["tauri", "build", "--debug"])
         .arg("--config")
         .arg(serde_json::to_string(config).unwrap())
         .env("TAURI_SIGNING_PRIVATE_KEY", UPDATER_PRIVATE_KEY)
@@ -169,14 +176,12 @@ fn test_update(app: &Path, update_bundle: PathBuf, signature: PathBuf, target: &
 
 #[cfg(windows)]
 fn nsis() {
-    let (manifest_dir, target_dir, config) = setup_test();
+    let (manifest_dir, target_dir, base_config, config) = setup_test();
 
-    // build update bundles, normal installer and zipped
+    // build update bundles
     build_app(&manifest_dir, &config, true, "nsis");
 
     // bundle base app
-    let mut base_config = config.clone();
-    base_config.version = "0.1.0";
     build_app(&manifest_dir, &base_config, false, "nsis");
 
     let app = target_dir.join("debug/app-updater.exe");
@@ -199,14 +204,12 @@ fn nsis() {
 
 #[cfg(windows)]
 fn msi() {
-    let (manifest_dir, target_dir, config) = setup_test();
+    let (manifest_dir, target_dir, base_config, config) = setup_test();
 
-    // build update bundles, normal installer and zipped
+    // build update bundles
     build_app(&manifest_dir, &config, true, "msi");
 
     // bundle base app
-    let mut base_config = config.clone();
-    base_config.version = "0.1.0";
     build_app(&manifest_dir, &base_config, false, "msi");
 
     let app = target_dir.join("debug/app-updater.exe");
@@ -224,7 +227,7 @@ fn msi() {
     let _ = Command::new("cmd")
         .arg("/c")
         .arg(&uninstall)
-        .arg("/qb")
+        .arg("/quiet")
         .status()
         .expect("failed to run msi uninstaller");
     std::thread::sleep(std::time::Duration::from_secs(5));
@@ -232,12 +235,42 @@ fn msi() {
 
 #[cfg(target_os = "linux")]
 fn appimage() {
-    let (manifest_dir, target_dir, mut config) = setup_test();
+    let (manifest_dir, target_dir, base_config, config) = setup_test();
+
+    // build update bundles
+    build_app(&manifest_dir, &config, true, "appimage");
+
+    let update_bundle = target_dir.join(format!(
+        "debug/bundle/appimage/app-updater_{}_amd64.AppImage",
+        config.version,
+    ));
+    let signature = update_bundle.with_extension("AppImage.sig");
+
+    // backup update bundles files because next build will override them
+    let appimage_backup = target_dir.join("debug/bundle/test-appimage.AppImage");
+    let signature_backup = target_dir.join("debug/bundle/test-appimage.AppImage.sig");
+    std::fs::rename(&update_bundle, &appimage_backup);
+    std::fs::rename(&signature, &signature_backup);
+
+    // bundle base app
+    build_app(&manifest_dir, &base_config, true, "appimage");
+
+    // restore backup
+    std::fs::rename(&appimage_backup, &update_bundle);
+    std::fs::rename(&signature_backup, &signature);
+
+    let app = target_dir.join(format!(
+        "debug/bundle/appimage/app-updater_{}_amd64.AppImage",
+        base_config.version
+    ));
+
+    // test appimage updates
+    test_update(&app, update_bundle, signature, "appimage");
 }
 
 #[cfg(target_os = "macos")]
 fn app() {
-    let (manifest_dir, target_dir, mut config) = setup_test();
+    let (manifest_dir, target_dir, base_config, config) = setup_test();
 }
 
 #[test]

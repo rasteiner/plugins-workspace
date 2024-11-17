@@ -17,6 +17,7 @@ fn main() {
             eprintln!("app version: {}", app.package_info().version);
 
             tauri::async_runtime::spawn(async move {
+                #[allow(unused_mut)]
                 let mut builder = handle.updater_builder();
 
                 // Overriding installation directory for integration tests on Windows
@@ -24,10 +25,7 @@ fn main() {
                 {
                     let target = std::env::var("TARGET").unwrap_or_default();
                     let exe = tauri::utils::platform::current_exe().unwrap();
-                    let dir = dunce::simplified(exe
-                        .parent()
-                        .unwrap())
-                        .display();
+                    let dir = dunce::simplified(exe.parent().unwrap()).display();
                     if target == "nsis" {
                         builder = builder.installer_args(vec![format!("/D=\"{dir}\"",)]);
                     } else if target == "msi" {
