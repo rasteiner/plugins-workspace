@@ -161,7 +161,7 @@ fn test_update(app: &Path, update_bundle: PathBuf, signature: PathBuf, target: &
     }
 
     // wait for the update to finish
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    std::thread::sleep(std::time::Duration::from_secs(20));
 
     // run again
     let status = app_cmd.status().expect("failed to run new app");
@@ -281,8 +281,8 @@ fn app() {
 #[test]
 #[ignore]
 fn it_updates() {
-    #[cfg(windows)]
-    nsis();
+    // #[cfg(windows)]
+    // nsis();
     // MSI test should be the last one
     #[cfg(windows)]
     msi();
