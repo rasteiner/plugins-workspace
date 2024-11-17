@@ -45,7 +45,7 @@ fn setup_test() -> (PathBuf, PathBuf, Config) {
     let target_dir = std::env::var("CARGO_TARGET_DIR")
         .or_else(|_| std::env::var("CARGO_BUILD_TARGET_DIR"))
         .map(PathBuf::from)
-        .unwrap_or_else(|_| manifest_dir.join("../../../.."));
+        .unwrap_or_else(|_| manifest_dir.join("../../../../target"));
 
     let config = Config {
         version: "1.0.0",
