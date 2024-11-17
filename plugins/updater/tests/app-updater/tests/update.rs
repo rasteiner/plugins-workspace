@@ -281,8 +281,8 @@ fn app() {
 #[test]
 #[ignore]
 fn it_updates() {
-    // #[cfg(windows)]
-    // nsis();
+    #[cfg(windows)]
+    nsis();
     // MSI test should be the last one
     #[cfg(windows)]
     msi();
