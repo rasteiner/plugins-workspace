@@ -145,6 +145,11 @@ fn test_update(app: &Path, update_bundle: PathBuf, signature: PathBuf, target: &
 
     // run app
     let mut app_cmd = Command::new(app);
+    #[cfg(target_os = "linux")]
+    let mut app_cmd = if std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
+        app_cmd = Command::new("xvfb-run");
+        app_cmd.arg().arg("--auto-servernum").arg(app);
+    };
     app_cmd.env("TARGET", target);
     let output = app_cmd.output().expect("failed to run app");
 
