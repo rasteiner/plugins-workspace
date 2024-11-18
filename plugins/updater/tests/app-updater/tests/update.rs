@@ -200,11 +200,13 @@ fn nsis() {
     test_update(&app, update_bundle, signature, "nsis");
 
     // cleanup the installed application
-    let _ = Command::new(target_dir.join("debug/uninstall.exe"))
-        .arg("/S")
-        .status()
-        .expect("failed to run nsis uninstaller");
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    if std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
+        let _ = Command::new(target_dir.join("debug/uninstall.exe"))
+            .arg("/S")
+            .status()
+            .expect("failed to run nsis uninstaller");
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    }
 }
 
 #[cfg(windows)]
@@ -228,14 +230,16 @@ fn msi() {
     test_update(&app, update_bundle, signature, "msi");
 
     // cleanup the installed application
-    let uninstall = target_dir.join("debug/Uninstall app-updater.lnk");
-    let _ = Command::new("cmd")
-        .arg("/c")
-        .arg(&uninstall)
-        .arg("/quiet")
-        .status()
-        .expect("failed to run msi uninstaller");
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    if std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
+        let uninstall = target_dir.join("debug/Uninstall app-updater.lnk");
+        let _ = Command::new("cmd")
+            .arg("/c")
+            .arg(&uninstall)
+            .arg("/quiet")
+            .status()
+            .expect("failed to run msi uninstaller");
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    }
 }
 
 #[cfg(target_os = "linux")]
