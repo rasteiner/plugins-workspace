@@ -27,9 +27,11 @@ fn main() {
                     let exe = tauri::utils::platform::current_exe().unwrap();
                     let dir = dunce::simplified(exe.parent().unwrap()).display();
                     if target == "nsis" {
-                        builder = builder.installer_args(vec![format!("/D=\"{dir}\"",)]);
+                        builder = builder
+                            .installer_arg("/NS")
+                            .installer_arg(format!("/D=\"{dir}\"",));
                     } else if target == "msi" {
-                        builder = builder.installer_args(vec![format!("INSTALLDIR=\"{dir}\"")]);
+                        builder = builder.installer_arg(format!("INSTALLDIR=\"{dir}\""));
                     }
                 }
 
