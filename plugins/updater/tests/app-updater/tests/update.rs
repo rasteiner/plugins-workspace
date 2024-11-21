@@ -200,7 +200,7 @@ fn nsis() {
     test_update(&app, update_bundle, signature, "nsis");
 
     // cleanup the installed application
-    if std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
+    if !std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
         let _ = Command::new(target_dir.join("debug/uninstall.exe"))
             .arg("/S")
             .status()
@@ -230,7 +230,7 @@ fn msi() {
     test_update(&app, update_bundle, signature, "msi");
 
     // cleanup the installed application
-    if std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
+    if !std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
         let uninstall = target_dir.join("debug/Uninstall app-updater.lnk");
         let _ = Command::new("cmd")
             .arg("/c")
