@@ -1,5 +1,13 @@
 # Changelog
 
+## \[2.0.3]
+
+### Dependencies
+
+- Upgraded to `log-js@2.0.1`
+- Upgraded to `fs-js@2.0.3`
+- Upgraded to `opener-js@2.0.0`
+
 ## \[2.0.2]
 
 ### Dependencies
